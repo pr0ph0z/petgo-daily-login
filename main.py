@@ -22,7 +22,6 @@ def get_ver_code(REGION):
     response = requests.get(f"https://raw.githubusercontent.com/O-Isaac/FGO-VerCode-extractor/{REGION}/VerCode.json").json()
     return response["appVer"], response["verCode"]
 
-# Constants
 REGION = os.environ.get("FATE_REGION", "JP")
 APP_VER = get_ver_code(REGION)[0]
 VER_CODE = get_ver_code(REGION)[1]
@@ -64,14 +63,12 @@ def get_asset_bundle(assetbundle):
         key = b'W0Juh4cFJSYPkebJB9WpswNF51oa6Gm7'  # JP key
     iv = data[:32]
     array = data[32:]
-
     cipher = py3rijndael.RijndaelCbc(
         key,
         iv,
         py3rijndael.paddings.Pkcs7Padding(16),
         32
     )
-
     data = cipher.decrypt(array)
     gzip_data = gzip.decompress(data)
     data_unpacked = msgpack.unpackb(gzip_data)
@@ -146,12 +143,10 @@ def top_login(user_id, auth_key, secret_key):
     if REGION == "NA":
         builder.add_parameter('country', '36')
 
-    # Load private key
     with open('private_key.pem', 'rb') as f:
         private_key = serialization.load_pem_private_key(
             f.read(), password=None, backend=default_backend())
 
-    # Sign idempotency key
     idk = builder.parameter_list[4][1]
     input_string = f"{user_id}{idk}"
     signature = private_key.sign(
@@ -160,9 +155,6 @@ def top_login(user_id, auth_key, secret_key):
         hashes.SHA256()
     )
     idempotency_key_signature = base64.b64encode(signature).decode('utf-8')
-    #print(f"Signature: {idempotency_key_signature}")
-
-    # Add additional parameters
     last_access_time = builder.parameter_list[5][1]
     user_state = (-int(last_access_time) >> 2) ^ int(user_id) & game_data['asset_bundle']['folderCrc']
 
@@ -174,33 +166,24 @@ def top_login(user_id, auth_key, secret_key):
     if REGION == "JP":
         builder.add_parameter('idempotencyKeySignature', idempotency_key_signature)
 
-    # Prepare request
     url = f'{SERVER_ADDR}/login/top?_userId={user_id}'
     data = builder.build()
-    #print(f"Constructed Payload: {data}")  # Print the payload
     headers = {
         'User-Agent': USER_AGENT,
         'Accept-Encoding': "deflate, gzip",
         'Content-Type': "application/x-www-form-urlencoded",
         'X-Unity-Version': "2022.3.28f1"
     }
-
-    # Send request
     response = requests.post(url, data=data, headers=headers, verify=True)
     return response.json()
 
 
 def decode_certificate(certificate):
     cert_byte = base64.b64decode(certificate)
-    
     key = "b5nHjsMrqaeNliSs3jyOzgpD".encode('utf-8')
     iv = "wuD6keVr".encode('utf-8')
-    
     cipher = DES3.new(key, DES3.MODE_CBC, iv)
-    
     result = cipher.decrypt(cert_byte)
-    
-    # Find the end of the JSON data
     json_end = result.rfind(b'}') + 1
     json_data = result[:json_end].decode('utf-8')
     
@@ -368,7 +351,6 @@ def discord_webhook(data):
         bonuses = data["Bonus"]
         
         if bonuses:
-            # Ensure bonuses list is not empty before accessing its elements
             if bonuses[0].get("Message bonus"):
                 messageBonus += f"__{bonuses[0]['Message bonus']}__{nl}```{nl.join(bonuses[0].get('Message Items', []))}```"
             
@@ -383,7 +365,7 @@ def discord_webhook(data):
         "content": None,
         "embeds": [
             {
-                "title": "FGO Daily Login -" + REGION,
+                "title": "FGO Daily Login - " + REGION,
                 "description": f"Succesfully login.\n\n{messageBonus}",
                 "color": 563455,
                     "fields": [
@@ -491,12 +473,13 @@ def discord_webhook(data):
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             print(f"Error: {e}")        
+            
     else:
         print("DISCORD_WEBHOOK is not set.")
 
 def main():
     your_certificate = os.environ.get("CERT")
-    # if your_certificate have ";" then split it else try_login(your_certificate)
+
     if ";" not in your_certificate:
         try:
             try_login = login(your_certificate)
@@ -504,11 +487,15 @@ def main():
                 discord_webhook(try_login)
                 print(f"Name: {try_login['Name']}")
                 print(f"Login Days: {try_login['Login Days']}/")
+                bonus_message = ', '.join(str(bonus) for bonus in try_login['Bonus'])
+                print(f"Message: {bonus_message}")
         except Exception as e:
             print(f"Error: {e}")
         return
+    
     else:
         auth_key = your_certificate.split(";")
+        
         for cert in auth_key:
             try: 
                 try_login = login(cert)
@@ -516,8 +503,12 @@ def main():
                     discord_webhook(try_login)
                     print(f"======\nName: {try_login['Name']}")
                     print(f"Login Days: {try_login['Login Days']}")
+                    bonus_message = ', '.join(str(bonus) for bonus in try_login['Bonus'])
+                    print(f"Message: {bonus_message}")
+
             except Exception as e:
                 print(f"Error: {e}")
+
         return
 
 if __name__ == "__main__":
