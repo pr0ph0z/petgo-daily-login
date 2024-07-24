@@ -334,18 +334,24 @@ def main():
     your_certificate = os.environ.get("CERT")
     # if your_certificate have ";" then split it else try_login(your_certificate)
     if ";" not in your_certificate:
-        try_login = login(your_certificate)
-        if try_login:
-            print(f"Name: {try_login['Name']}")
-            print(f"Login Days: {try_login['Login Days']}/")
-            return
+        try:
+            try_login = login(your_certificate)
+            if try_login:
+                print(f"Name: {try_login['Name']}")
+                print(f"Login Days: {try_login['Login Days']}/")
+        except Exception as e:
+            print(f"Error: {e}")
+        return
     else:
         auth_key = your_certificate.split(";")
         for cert in auth_key:
-            try_login = login(cert)
-            if try_login:
-                print(f"======\nName: {try_login['Name']}")
-                print(f"Login Days: {try_login['Login Days']}")
+            try: 
+                try_login = login(cert)
+                if try_login:
+                    print(f"======\nName: {try_login['Name']}")
+                    print(f"Login Days: {try_login['Login Days']}")
+            except Exception as e:
+                print(f"Error: {e}")
         return
 
 if __name__ == "__main__":
