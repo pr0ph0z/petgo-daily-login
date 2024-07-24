@@ -30,6 +30,7 @@ Add this enviroment variables into `Repository > settings > secrets > actions`
 | GAME_REGION | NA or JP (Must be in upper case) |
 | DISCORD_WEBHOOK | https://discord.com/api/webhooks/randomNumber/randomString |
 
+For multiple accs, put `;` between Zsv string (e.g: `ZsvAbC123;ZsvDeF456;ZsvGhI678`)
 # Credits
 - [hexstr](https://github.com/hexstr)
 - [O-Isaac](https://github.com/O-Isaac)
