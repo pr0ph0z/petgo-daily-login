@@ -469,7 +469,7 @@ def discord_webhook(data):
                 },
                 {
                 "name": "Current AP",
-                "value": f"{data['Current AP']}",
+                "value": f"{data['Current Action Points']}",
                 "inline": True
                 },
                 {
