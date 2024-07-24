@@ -214,6 +214,7 @@ def decode_certificate(certificate):
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
         return None, None, None
+
 def login(cert):
     user_id, auth_key, secret_key = decode_certificate(cert)
     if user_id and auth_key and secret_key:
@@ -330,12 +331,22 @@ def login(cert):
         return None
 
 def main():
-    #print("You can get the certificate from `Android/data/com.aniplex.fategrandorder/files/data/54cc790bf952ea710ed7e8be08049531`")
     your_certificate = os.environ.get("CERT")
-    try_login = login(your_certificate)
-    # print Name and Login Days
-    print(f"Name: {try_login['Name']}")
-    print(f"Login Days: {try_login['Login Days']}")
+    # if your_certificate have ";" then split it else try_login(your_certificate)
+    if ";" not in your_certificate:
+        try_login = login(your_certificate)
+        if try_login:
+            print(f"Name: {try_login['Name']}")
+            print(f"Login Days: {try_login['Login Days']}/")
+            return
+    else:
+        auth_key = your_certificate.split(";")
+        for cert in auth_key:
+            try_login = login(cert)
+            if try_login:
+                print(f"======\nName: {try_login['Name']}")
+                print(f"Login Days: {try_login['Login Days']}")
+        return
 
 if __name__ == "__main__":
     main()
