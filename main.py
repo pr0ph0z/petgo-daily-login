@@ -299,7 +299,31 @@ def login(cert):
         add_fp = data['response'][0]['success']['addFriendPoint']
         total_fp = data['cache']['replaced']['tblUserGame'][0]['friendPoint']
 
-        result = { name: name, lv: lv, stone: stone, ticket: ticket, goldenfruit: goldenfruit, silverfruit: silverfruit, bronzefruit: bronzefruit, bluebronzesapling: bluebronzesapling, bluebronzefruit: bluebronzefruit, pureprism: pureprism, sqf01: sqf01, holygrail: holygrail, login_days: login_days, total_days: total_days, fpids1: fpids1, act_max: act_max, act_recover_at: act_recover_at, carryOverActPoint: carryOverActPoint, serverTime: serverTime, remaining_ap: remaining_ap, now_act: now_act, add_fp: add_fp, total_fp: total_fp }    
+        result = {
+            "Name": name,
+            "Level": lv,
+            "Stone": stone,
+            "Ticket": ticket,
+            "Golden Fruit": goldenfruit,
+            "Silver Fruit": silverfruit,
+            "Bronze Fruit": bronzefruit,
+            "Blue Bronze Sapling": bluebronzesapling,
+            "Blue Bronze Fruit": bluebronzefruit,
+            "Pure Prism": pureprism,
+            "SQ Fragments": sqf01,
+            "Holy Grail": holygrail,
+            "Login Days": login_days,
+            "Total Days": total_days,
+            "Friend Code": fpids1,
+            "Max Action Points": act_max,
+            "Action Points Recovery Time": act_recover_at,
+            "Carry Over Action Points": carryOverActPoint,
+            "Server Time": serverTime,
+            "Remaining Action Points": remaining_ap,
+            "Current Action Points": now_act,
+            "Additional Friend Points": add_fp,
+            "Total Friend Points": total_fp
+        }
         return result
     else:
         print("Failed to decode certificate.")
@@ -309,7 +333,9 @@ def main():
     #print("You can get the certificate from `Android/data/com.aniplex.fategrandorder/files/data/54cc790bf952ea710ed7e8be08049531`")
     your_certificate = os.environ.get("CERT")
     try_login = login(your_certificate)
-    print(try_login)
+    # print Name and Login Days
+    print(f"Name: {try_login['Name']}")
+    print(f"Login Days: {try_login['Login Days']}")
 
 if __name__ == "__main__":
     main()
