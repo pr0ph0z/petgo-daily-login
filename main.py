@@ -300,6 +300,25 @@ def login(cert):
         add_fp = data['response'][0]['success']['addFriendPoint']
         total_fp = data['cache']['replaced']['tblUserGame'][0]['friendPoint']
 
+        bonus_message = None
+        items = []
+        bonus_name = None
+        bonus_detail = None
+        items_camp_bonus = []
+
+        if 'seqLoginBonus' in data['response'][0]['success']:
+            bonus_message = data['response'][0]['success']['seqLoginBonus'][0]['message']
+
+            for i in data['response'][0]['success']['seqLoginBonus'][0]['items']:
+                items.append(f'{i["name"]} x{i["num"]}')
+
+            if 'campaignbonus' in data['response'][0]['success']:
+                bonus_name = data['response'][0]['success']['campaignbonus'][0]['name']
+                bonus_detail = data['response'][0]['success']['campaignbonus'][0]['detail']
+
+                for i in data['response'][0]['success']['campaignbonus'][0]['items']:
+                    items_camp_bonus.append(f'{i["name"]} x{i["num"]}')
+
         result = {
             "Name": name,
             "Level": lv,
@@ -323,12 +342,157 @@ def login(cert):
             "Remaining Action Points": remaining_ap,
             "Current Action Points": now_act,
             "Additional Friend Points": add_fp,
-            "Total Friend Points": total_fp
+            "Total Friend Points": total_fp,
+            "Bonus": [
+                {"Message bonus": bonus_message},
+                {"Message item": items},
+                {"Campaign Bonus Name": bonus_name},
+                {"Campaign Bonus Detail": bonus_detail},
+                {"Campaign Bonus Items": items_camp_bonus}
+            ]
         }
+
         return result
     else:
         print("Failed to decode certificate.")
         return None
+
+def discord_webhook(data):
+    url = os.environ.get("webhookDiscord")
+    messageBonus = ''
+    nl = '\n'
+
+    if "No Bonus" in data["Bonus"]:
+        messageBonus = ""
+    else:
+        bonuses = data["Bonus"]
+        
+        if bonuses:
+            # Ensure bonuses list is not empty before accessing its elements
+            if bonuses[0].get("Message bonus"):
+                messageBonus += f"__{bonuses[0]['Message bonus']}__{nl}```{nl.join(bonuses[0].get('Message Items', []))}```"
+            
+            if bonuses[0].get("Campaign Bonus Name"):
+                messageBonus += f"{nl}__{bonuses[0]['Campaign Bonus Name']}__{nl}{bonuses[0].get('Campaign Bonus Detail', '')}{nl}```{nl.join(bonuses[0].get('Campaign Bonus Items', []))}```"
+
+    if url:
+        headers = {
+            "Content-Type": "application/json"
+        }
+        payload = {
+        "content": None,
+        "embeds": [
+            {
+                "title": "FGO Daily Login -" + REGION,
+                "description": f"Succesfully login.\n\n{messageBonus}",
+                "color": 563455,
+                    "fields": [
+                {
+                "name": "Master Name",
+                "value": f"{data['Name']}",
+                "inline": True
+                },
+                {
+                "name": "Friend ID",
+                "value": f"{data['Friend Code']}",
+                "inline": True
+                },
+                {
+                "name": "Level",
+                "value": f"{data['Level']}",
+                "inline": True
+                },
+                {
+                "name": "Summon Tickets", 
+                "value": f"{data['Ticket']}",
+                "inline": True
+                },                    
+                {
+                "name": "Saint Quartz",
+                "value": f"{data['Stone']}",
+                "inline": True
+                },
+                {
+                "name": "SQ Fragments",
+                "value": f"{data['SQ Fragments']}",
+                "inline": True
+                },
+                {
+                "name": "Golden Apples",
+                "value": f"{data['Golden Fruit']}",
+                "inline": True
+                },
+                {
+                "name": "Silver Apples",
+                "value": f"{data['Silver Fruit']}",
+                "inline": True
+                },
+                {
+                "name": "Bronze Apples",
+                "value": f"{data['Bronze Fruit']}",
+                "inline": True
+                },
+                {
+                "name": "Blue Apples",
+                "value": f"{data['Blue Bronze Fruit']}",
+                "inline": True
+                },
+                {
+                "name": "Blue Apple Saplings",
+                "value": f"{data['Blue Bronze Sapling']}",
+                "inline": True
+                },
+                {
+                "name": "Consecutive Login Days",
+                "value": f"{data['Login Days']}",
+                "inline": True
+                },
+                {
+                "name": "Total Login Days",
+                "value": f"{data['Total Days']}",
+                "inline": True
+                },
+                {
+                "name": "Pure Prism",
+                "value": f"{data['Pure Prism']}",
+                "inline": True
+                },
+                {
+                "name": "FP",
+                "value": f"{data['Total Friend Points']}",
+                "inline": True
+                },
+                {
+                "name": "FP Obtained Today",
+                "value": f"{data['Additional Friend Points']}",
+                "inline": True
+                },
+                {
+                "name": "Current AP",
+                "value": f"{data['Current AP']}",
+                "inline": True
+                },
+                {
+                "name": "Holy Grails",
+                "value": f"{data['Holy Grail']}",
+                "inline": True
+                },
+                
+            ],
+                "thumbnail": {
+                    "url": "https://www.fate-go.jp/manga_fgo/images/commnet_chara01.png"
+                }
+            }
+        ],
+        "attachments": []
+    }
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            print(f"Error: {e}")        
+    else:
+        print("DISCORD_WEBHOOK is not set.")
 
 def main():
     your_certificate = os.environ.get("CERT")
@@ -337,6 +501,7 @@ def main():
         try:
             try_login = login(your_certificate)
             if try_login:
+                discord_webhook(try_login)
                 print(f"Name: {try_login['Name']}")
                 print(f"Login Days: {try_login['Login Days']}/")
         except Exception as e:
@@ -348,6 +513,7 @@ def main():
             try: 
                 try_login = login(cert)
                 if try_login:
+                    discord_webhook(try_login)
                     print(f"======\nName: {try_login['Name']}")
                     print(f"Login Days: {try_login['Login Days']}")
             except Exception as e:
