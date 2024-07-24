@@ -299,10 +299,7 @@ def login(cert):
         add_fp = data['response'][0]['success']['addFriendPoint']
         total_fp = data['cache']['replaced']['tblUserGame'][0]['friendPoint']
 
-        result = { name: name, lv: lv, stone: stone, ticket: ticket, goldenfruit: goldenfruit, silverfruit: silverfruit, bronzefruit: bronzefruit, bluebronzesapling: bluebronzesapling, bluebronzefruit: bluebronzefruit, pureprism: pureprism, sqf01: sqf01, holygrail: holygrail, login_days: login_days, total_days: total_days, fpids1: fpids1, act_max: act_max, act_recover_at: act_recover_at, carryOverActPoint: carryOverActPoint, serverTime: serverTime, remaining_ap: remaining_ap, now_act: now_act, add_fp: add_fp, total_fp: total_fp }
-
-        print(str(result))
-        
+        result = { name: name, lv: lv, stone: stone, ticket: ticket, goldenfruit: goldenfruit, silverfruit: silverfruit, bronzefruit: bronzefruit, bluebronzesapling: bluebronzesapling, bluebronzefruit: bluebronzefruit, pureprism: pureprism, sqf01: sqf01, holygrail: holygrail, login_days: login_days, total_days: total_days, fpids1: fpids1, act_max: act_max, act_recover_at: act_recover_at, carryOverActPoint: carryOverActPoint, serverTime: serverTime, remaining_ap: remaining_ap, now_act: now_act, add_fp: add_fp, total_fp: total_fp }    
         return result
     else:
         print("Failed to decode certificate.")
