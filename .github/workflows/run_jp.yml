@@ -28,3 +28,4 @@ jobs:
           DEVICE_INFO_SECRET: ${{ secrets.DEVICE_INFO_SECRET }}
           USER_AGENT_SECRET_2: ${{ secrets.USER_AGENT_SECRET_2 }}
           webhookDiscord: ${{ secrets.DISCORD_WEBHOOK }}
+          BUY_BLUE_APPLE: ${{ secrets.BUY_BLUE_APPLE }}
