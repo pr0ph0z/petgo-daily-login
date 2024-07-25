@@ -341,7 +341,7 @@ def login(cert):
         return None
     
 def buyBlueApple(user_id, auth_key, secret_key):
-    if os.environ.get("BUYBLUEAPPLE") != "Y":
+    if os.environ.get("BUY_BLUE_APPLE") != "Y":
         print("BUY_BLUE_APPLE secret is set to N. Skipping.")
         return
     game_data = get_latest_game_data()
