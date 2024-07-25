@@ -29,6 +29,7 @@ Add this enviroment variables into `Repository > settings > secrets > actions`
 | DEVICE_INFO_SECRET |   / Android OS 9 / API-28 (PQ3A.190605.09261202 release-keys/3793265) or Your Device Info |
 | GAME_REGION | NA or JP (Must be in upper case) |
 | DISCORD_WEBHOOK | https://discord.com/api/webhooks/randomNumber/randomString |
+| BUY_BLUE_APPLE | Y or N |
 
 For multiple accs, put `;` between Zsv string (e.g: `ZsvAbC123;ZsvDeF456;ZsvGhI678`)
 # Credits
