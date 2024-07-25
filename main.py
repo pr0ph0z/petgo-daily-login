@@ -487,8 +487,13 @@ def main():
                 discord_webhook(try_login)
                 print(f"Name: {try_login['Name']}")
                 print(f"Login Days: {try_login['Login Days']}/")
-                bonus_message = ', '.join(str(bonus) for bonus in try_login['Bonus'])
-                print(f"Message: {bonus_message}")
+                formatted_message = '\n'.join(
+                    '\n'.join(f"{key}: {value}" for key, value in bonus.items())
+                    for bonus in try_login['Bonus']
+                )
+
+                # Print the formatted message
+                print(f"Message:\n{formatted_message}")
         except Exception as e:
             print(f"Error: {e}")
         return
@@ -503,8 +508,13 @@ def main():
                     discord_webhook(try_login)
                     print(f"======\nName: {try_login['Name']}")
                     print(f"Login Days: {try_login['Login Days']}")
-                    bonus_message = ', '.join(str(bonus) for bonus in try_login['Bonus'])
-                    print(f"Message: {bonus_message}")
+                    formatted_message = '\n'.join(
+                        '\n'.join(f"{key}: {value}" for key, value in bonus.items())
+                        for bonus in try_login['Bonus']
+                    )
+
+                    # Print the formatted message
+                    print(f"Message:\n{formatted_message}")
 
             except Exception as e:
                 print(f"Error: {e}")
