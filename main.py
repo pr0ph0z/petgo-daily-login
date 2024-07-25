@@ -339,6 +339,90 @@ def login(cert):
     else:
         print("Failed to decode certificate.")
         return None
+    
+def buyBlueApple(user_id, auth_key, secret_key):
+    if os.environ.get("BUY_BLUE_APPLE") != "Y":
+        print("buyBlueApple is set to False. Skipping.")
+        return
+    game_data = get_latest_game_data()
+    data = top_login(user_id, auth_key, secret_key)
+    
+    actRecoverAt = data['cache']['replaced']['userGame'][0]['actRecoverAt']
+    actMax = data['cache']['replaced']['userGame'][0]['actMax']
+    carryOverActPoint = data['cache']['replaced']['userGame'][0]['carryOverActPoint']
+    serverTime = data['cache']['serverTime']
+
+    bluebronzesapling = 0 
+    for item in data['cache']['replaced']['userItem']:
+        if item['itemId'] == 103:
+            bluebronzesapling = item['num']
+            break
+        
+    ap_points = actRecoverAt - serverTime
+    remaining_ap = 0
+
+    if ap_points > 0:
+       lost_ap_point = (ap_points + 299) // 300
+       if actMax >= lost_ap_point:
+           remaining_ap = actMax - lost_ap_point
+           remaining_ap_int = int(remaining_ap)
+    else:
+        remaining_ap = actMax + carryOverActPoint
+        remaining_ap_int = int(remaining_ap)
+
+    if bluebronzesapling > 0:
+        quantity = remaining_ap_int // 40
+        if quantity == 0:
+            print(f"\n ======================================== \n Not enough AP to exchange blue apple \n ======================================== ")
+            return
+        
+        if bluebronzesapling < quantity:
+            num_to_purchase = bluebronzesapling
+        else:
+            num_to_purchase = quantity
+
+        builder = ParameterBuilder(user_id, auth_key, secret_key)
+        builder.add_parameter('id', '13000000')
+        builder.add_parameter('num', str(num_to_purchase))
+        builder.add_parameter('appVer', APP_VER)
+        builder.add_parameter('authKey', auth_key)
+        builder.add_parameter('dataVer', str(game_data['data_ver']))
+        builder.add_parameter('dateVer', str(game_data['date_ver']))
+        builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
+        builder.add_parameter('lastAccessTime', get_time_stamp())
+        builder.add_parameter('userId', user_id)
+        builder.add_parameter('verCode', VER_CODE)
+            
+        url = f'{SERVER_ADDR}/shop/purchase?_userId={user_id}'
+        data = builder.build()
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Accept-Encoding': "deflate, gzip",
+            'Content-Type': "application/x-www-form-urlencoded",
+            'X-Unity-Version': "2022.3.28f1"
+        }
+        response = requests.post(url, data=data, headers=headers, verify=True)
+        data = response.json()
+
+        responses = data['response']
+
+        for response in responses:
+            resCode = response['resCode']
+            resSuccess = response['success']
+            nid = response["nid"]
+
+            if (resCode != "00"):
+                continue
+
+            if nid == "purchase":
+                if "purchaseName" in resSuccess and "purchaseNum" in resSuccess:
+                    purchaseName = resSuccess['purchaseName']
+                    purchaseNum = resSuccess['purchaseNum']
+
+                    print(f"\n========================================\n[+] {purchaseNum}x {purchaseName} Purchase Success\n========================================")
+                    return {"item": purchaseName, "num": purchaseNum}
+    else:
+        print(f"\n ======================================== \n Not enough saplings \n ======================================== " )
 
 def discord_webhook(data):
     url = os.environ.get("webhookDiscord")
@@ -482,18 +566,24 @@ def main():
 
     if ";" not in your_certificate:
         try:
-            try_login = login(your_certificate)
-            if try_login:
-                discord_webhook(try_login)
-                print(f"Name: {try_login['Name']}")
-                print(f"Login Days: {try_login['Login Days']}/")
-                formatted_message = '\n'.join(
-                    '\n'.join(f"{key}: {value}" for key, value in bonus.items())
-                    for bonus in try_login['Bonus']
-                )
+            user_id, auth_key, secret_key = decode_certificate(your_certificate)
+            if user_id and auth_key and secret_key:
+                try_login = login(your_certificate)
+                if try_login:
+                    discord_webhook(try_login)
+                    print(f"Name: {try_login['Name']}")
+                    print(f"Login Days: {try_login['Login Days']}/")
+                    formatted_message = '\n'.join(
+                        '\n'.join(f"{key}: {value}" for key, value in bonus.items())
+                        for bonus in try_login['Bonus']
+                    )
+                    print(f"Message:\n{formatted_message}")
+                    
+                    # Call buyBlueApple function after successful login
+                bba = buyBlueApple(user_id, auth_key, secret_key)
+                if bba:
+                    print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
 
-                # Print the formatted message
-                print(f"Message:\n{formatted_message}")
         except Exception as e:
             print(f"Error: {e}")
         return
@@ -503,18 +593,23 @@ def main():
         
         for cert in auth_key:
             try: 
-                try_login = login(cert)
-                if try_login:
-                    discord_webhook(try_login)
-                    print(f"======\nName: {try_login['Name']}")
-                    print(f"Login Days: {try_login['Login Days']}")
-                    formatted_message = '\n'.join(
-                        '\n'.join(f"{key}: {value}" for key, value in bonus.items())
-                        for bonus in try_login['Bonus']
-                    )
-
-                    # Print the formatted message
-                    print(f"Message:\n{formatted_message}")
+                user_id, auth_key, secret_key = decode_certificate(cert)
+                if user_id and auth_key and secret_key:
+                    try_login = login(cert)
+                    if try_login:
+                        discord_webhook(try_login)
+                        print(f"======\nName: {try_login['Name']}")
+                        print(f"Login Days: {try_login['Login Days']}")
+                        formatted_message = '\n'.join(
+                            '\n'.join(f"{key}: {value}" for key, value in bonus.items())
+                            for bonus in try_login['Bonus']
+                        )
+                        print(f"Message:\n{formatted_message}")
+                        
+                        # Call buyBlueApple function after successful login
+                        bba = buyBlueApple(user_id, auth_key, secret_key)
+                        if bba:
+                            print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
 
             except Exception as e:
                 print(f"Error: {e}")
