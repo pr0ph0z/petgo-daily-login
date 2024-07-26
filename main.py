@@ -376,8 +376,6 @@ def drawFP(auth_key, user_id, secret_key):
     game_data = get_latest_game_data()
     data = top_login(user_id, auth_key, secret_key)
     gachaSubId = GetGachaSubIdFP()
-    workaround = int(gachaSubId)-1
-    also = str(workaround)
 
     if gachaSubId is None:
         gachaSubId = "0"
@@ -395,7 +393,7 @@ def drawFP(auth_key, user_id, secret_key):
     builder.add_parameter('num', '10')
     builder.add_parameter('ticketItemId', '0')
     builder.add_parameter('shopIdIndex', '1')
-    builder.add_parameter('gachaSubId', also)
+    builder.add_parameter('gachaSubId', gachaSubId)
     builder.add_parameter('userId', user_id)
     builder.add_parameter('dataVer', str(game_data['data_ver']))
 
