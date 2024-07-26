@@ -127,6 +127,21 @@ class ParameterBuilder:
                 hashlib.sha1(temp.encode('utf-8')).digest()).decode())
 
         return self.content
+    
+class EventMission:
+    def __init__(self, message, progressFrom, progressTo, condition):
+        self.message = message
+        self.progressFrom = progressFrom
+        self.progressTo = progressTo
+        self.condition = condition
+
+
+class gachaInfoServant:
+    def __init__(self, isNew, objectId, sellMana, sellQp):
+        self.isNew = isNew
+        self.objectId = objectId
+        self.sellMana = sellMana
+        self.sellQp = sellQp
 
 def top_login(user_id, auth_key, secret_key):
     game_data = get_latest_game_data()
@@ -339,6 +354,90 @@ def login(cert):
     else:
         print("Failed to decode certificate.")
         return None
+
+def GetGachaSubIdFP(region = REGION):
+    response = requests.get(f"https://git.atlasacademy.io/atlasacademy/fgo-game-data/raw/branch/{region}/master/mstGachaSub.json");
+    gachaList = json.loads(response.text)
+    timeNow = GetTimeStamp()
+    priority = 0
+    goodGacha = {}
+    for gacha in gachaList:
+        openedAt = gacha["openedAt"]
+        closedAt = gacha["closedAt"]
+
+        if openedAt <= timeNow & timeNow <= closedAt:
+            p = int(gacha["priority"])
+            if(p > priority):
+                priority = p
+                goodGacha = gacha
+    return str(goodGacha["id"])
+
+def drawFP(auth_key, user_id, secret_key):
+    game_data = get_latest_game_data()
+    data = top_login(user_id, auth_key, secret_key)
+    gachaSubId = GetGachaSubIdFP()
+    workaround = int(gachaSubId)-1
+    also = str(workaround)
+
+    if gachaSubId is None:
+        gachaSubId = "0"
+    
+    builder = ParameterBuilder(user_id, auth_key, secret_key)
+    builder.add_parameter('storyAdjustIds', '[]')
+    builder.add_parameter('selectBonusList', '')
+    builder.add_parameter('authKey', auth_key)
+    builder.add_parameter('appVer', APP_VER)
+    builder.add_parameter('dateVer', str(game_data['date_ver']))
+    builder.add_parameter('lastAccessTime', get_time_stamp())
+    builder.add_parameter('verCode', VER_CODE)
+    builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
+    builder.add_parameter('gachaId', '1')
+    builder.add_parameter('num', '10')
+    builder.add_parameter('ticketItemId', '0')
+    builder.add_parameter('shopIdIndex', '1')
+    builder.add_parameter('gachaSubId', also)
+    builder.add_parameter('userId', user_id)
+    builder.add_parameter('dataVer', str(game_data['data_ver']))
+
+    url = f'{SERVER_ADDR}/gacha/draw?_userId={user_id}'
+    param = builder.build()
+    headers = {
+        'User-Agent': USER_AGENT,
+        'Accept-Encoding': "deflate, gzip",
+        'Content-Type': "application/x-www-form-urlencoded",
+        'X-Unity-Version': "2022.3.28f1"
+    }
+    response = requests.post(url, data=param, headers=headers, verify=True)
+    data = response.json()
+    responses = data['response']
+
+    servantArray = []
+    missionArray = []
+
+    for response in responses:
+        resCode = response['resCode']
+        resSuccess = response['success']
+
+        if (resCode != "00"):
+            continue
+
+        if "gachaInfos" in resSuccess:
+            for info in resSuccess['gachaInfos']:
+                servantArray.append(
+                    gachaInfoServant(
+                        info['isNew'], info['objectId'], info['sellMana'], info['sellQp']
+                    )
+                )
+
+        if "eventMissionAnnounce" in resSuccess:
+            for mission in resSuccess["eventMissionAnnounce"]:
+                missionArray.append(
+                    EventMission(
+                        mission['message'], mission['progressFrom'], mission['progressTo'], mission['condition']
+                    )
+                )
+    return servantArray, missionArray
+
     
 def buyBlueApple(user_id, auth_key, secret_key):
     if os.environ.get("BUY_BLUE_APPLE") != "Y":
@@ -382,16 +481,16 @@ def buyBlueApple(user_id, auth_key, secret_key):
             num_to_purchase = quantity
 
         builder = ParameterBuilder(user_id, auth_key, secret_key)
+        builder.add_parameter('userId', user_id)
+        builder.add_parameter('authKey', auth_key)
+        builder.add_parameter('appVer', APP_VER)
+        builder.add_parameter('dateVer', str(game_data['date_ver']))
+        builder.add_parameter('lastAccessTime', get_time_stamp())
+        builder.add_parameter('verCode', VER_CODE)
+        builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
         builder.add_parameter('id', '13000000')
         builder.add_parameter('num', str(num_to_purchase))
-        builder.add_parameter('appVer', APP_VER)
-        builder.add_parameter('authKey', auth_key)
         builder.add_parameter('dataVer', str(game_data['data_ver']))
-        builder.add_parameter('dateVer', str(game_data['date_ver']))
-        builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
-        builder.add_parameter('lastAccessTime', get_time_stamp())
-        builder.add_parameter('userId', user_id)
-        builder.add_parameter('verCode', VER_CODE)
             
         url = f'{SERVER_ADDR}/shop/purchase?_userId={user_id}'
         data = builder.build()
@@ -578,8 +677,8 @@ def main():
                         for bonus in try_login['Bonus']
                     )
                     print(f"Message:\n{formatted_message}")
+                    drawFP(auth_key, user_id, secret_key)
                     
-                    # Call buyBlueApple function after successful login
                 bba = buyBlueApple(user_id, auth_key, secret_key)
                 if bba:
                     print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
@@ -605,8 +704,10 @@ def main():
                             for bonus in try_login['Bonus']
                         )
                         print(f"Message:\n{formatted_message}")
+                        dfp = drawFP(auth_key, user_id, secret_key)
+                        if dfp:
+                            print(f"\nDraw {len(dfp[0])} Servants")
                         
-                        # Call buyBlueApple function after successful login
                         bba = buyBlueApple(user_id, auth_key, secret_key)
                         if bba:
                             print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
