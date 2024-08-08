@@ -19,8 +19,13 @@ from datetime import datetime, timedelta, timezone
 tz_utc_8 = timezone(timedelta(hours=8))
 
 def get_ver_code(REGION):
-    response = requests.get(f"https://raw.githubusercontent.com/O-Isaac/FGO-VerCode-extractor/{REGION}/VerCode.json").json()
-    return response["appVer"], response["verCode"]
+    url = f"https://fgo.bigcereal.com/{REGION}/verCode.txt"
+    response = requests.get(url)
+    data = response.text.strip()
+    params = dict(item.split('=') for item in data.split('&'))
+    appVer = params.get("appVer")
+    verCode = params.get("verCode")
+    return appVer, verCode
 
 REGION = os.environ.get("FATE_REGION", "JP")
 APP_VER = get_ver_code(REGION)[0]
