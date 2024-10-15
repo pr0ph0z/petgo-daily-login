@@ -667,7 +667,6 @@ def main():
                     try_login = login(your_certificate, authParam)
                     if try_login:
                         discord_webhook(try_login, authParam)
-                        print(f"Name: {try_login['Name']}")
                         print(f"Login Days: {try_login['Login Days']}/")
                         formatted_message = '\n'.join(
                             '\n'.join(f"{key}: {value}" for key, value in bonus.items())
@@ -693,7 +692,6 @@ def main():
                         try_login = login(cert, authParam)
                         if try_login:
                             discord_webhook(try_login)
-                            print(f"======\nName: {try_login['Name']}")
                             print(f"Login Days: {try_login['Login Days']}")
                             formatted_message = '\n'.join(
                                 '\n'.join(f"{key}: {value}" for key, value in bonus.items())
