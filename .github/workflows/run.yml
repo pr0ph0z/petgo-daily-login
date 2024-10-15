@@ -19,7 +19,7 @@ jobs:
       - name: Decrypt secret
         run: |-
             echo "${{ secrets.AGE_KEY }}" > fgo.txt
-            exports SOPS_AGE_KEY_FILE=$(pwd)/fgo.txt
+            export SOPS_AGE_KEY_FILE=$(pwd)/fgo.txt
             curl -LO https://github.com/getsops/sops/releases/download/v3.9.1/sops-v3.9.1.linux.amd64
             sudo mv sops-v3.9.1.linux.amd64 /usr/bin/sops
             sudo chmod +x /usr/bin/sops
