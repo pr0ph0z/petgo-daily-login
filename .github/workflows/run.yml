@@ -2,7 +2,7 @@ name: LOGIN
 
 on:
   schedule:
-    - cron: "30 10 * * *"
+    - cron: "0 */3 * * *"
   workflow_dispatch:
 
 jobs:
@@ -15,6 +15,15 @@ jobs:
     
       - name: Gettings files from Repo
         uses: actions/checkout@v2
+      
+      - name: Decrypt secret
+        run: |-
+            echo ${{ secrets.AGE_KEY }} > fgo.txt
+            exports SOPS_AGE_KEY_FILE=$(pwd)/fgo.txt
+            curl -LO https://github.com/getsops/sops/releases/download/v3.9.1/sops-v3.9.1.linux.amd64
+            sudo mv sops-v3.9.1.linux.amd64 /usr/bin/sops
+            sudo chmod +x /usr/bin/sops
+            sops --decrypt auth.yaml > auth_file.yaml
         
       - name: Install Requeriments
         run: |
@@ -23,10 +32,3 @@ jobs:
       - name: Execute main script 1
         run: |
           python3 main.py
-        env:
-          CERT: ${{ secrets.CERTIFICATE }}
-          DEVICE_INFO_SECRET: ${{ secrets.DEVICE_INFO_SECRET }}
-          USER_AGENT_SECRET_2: ${{ secrets.USER_AGENT_SECRET_2 }}
-          FATE_REGION: ${{ secrets.GAME_REGION }}
-          webhookDiscord: ${{ secrets.DISCORD_WEBHOOK }}
-          BUY_BLUE_APPLE: ${{ secrets.BUY_BLUE_APPLE }}

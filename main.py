@@ -16,55 +16,27 @@ from cryptography.hazmat.primitives import hashes
 import binascii
 from Crypto.Cipher import DES3
 from datetime import datetime, timedelta, timezone
-tz_utc_8 = timezone(timedelta(hours=8))
+import yaml
+tz_utc_8 = timezone(timedelta(hours=7))
 
-def get_ver_code(REGION):
-    url = f"https://fgo.bigcereal.com/{REGION}/verCode.txt"
-    response = requests.get(url)
-    data = response.text.strip()
-    params = dict(item.split('=') for item in data.split('&'))
-    appVer = params.get("appVer")
-    verCode = params.get("verCode")
+def get_ver_code(region):
+    url = f"https://raw.githubusercontent.com/O-Isaac/FGO-VerCode-extractor/{region}/VerCode.json"
+    response = requests.get(url).text
+    data = json.loads(response)
+    appVer = data['appVer']
+    verCode = data['verCode']
     return appVer, verCode
-
-REGION = os.environ.get("FATE_REGION", "JP")
-APP_VER = get_ver_code(REGION)[0]
-VER_CODE = get_ver_code(REGION)[1]
-USER_AGENT = os.environ.get("USER_AGENT_SECRET_2", "Dalvik/2.1.0 (Linux; U; Android 9 Build/PQ3A.190605.09261202)")
-DEVICE_INFO = os.environ.get("DEVICE_INFO_SECRET", "  / Android OS 9 / API-28 (PQ3A.190605.09261202 release-keys/3793265)")
-SERVER_ADDR = "https://game.fate-go.jp"  if REGION == "JP" else "https://game.fate-go.us"
-
-
-def GetNowTimeHour():
-    return datetime.now(tz=tz_utc_8).hour
-
-
-def GetNowTime():
-    return datetime.now(tz=tz_utc_8)
-
-
-def GetFormattedNowTime():
-    return datetime.now(tz=tz_utc_8).strftime('%Y-%m-%d %H:%M:%S')
-
 
 def GetTimeStamp():
     return (int)(datetime.now(tz=tz_utc_8).timestamp())
 
-
-def TimeStampToString(timestamp):
-    return datetime.fromtimestamp(timestamp)
-
-
-def GetNowTimeFileName():
-    return datetime.now(tz=tz_utc_8).strftime('%Y/%m/%d.log')
-
 def get_time_stamp():
     return str(int(time.time()))
 
-def get_asset_bundle(assetbundle):
+def get_asset_bundle(assetbundle, region):
     data = base64.b64decode(assetbundle)
     key = b'nn33CYId2J1ggv0bYDMbYuZ60m4GZt5P'  # NA key
-    if REGION == "JP":
+    if region == "JP":
         key = b'W0Juh4cFJSYPkebJB9WpswNF51oa6Gm7'  # JP key
     iv = data[:32]
     array = data[32:]
@@ -85,10 +57,10 @@ def get_folder_data(assetbundle):
     folder_crc = binascii.crc32(folder_name.encode('utf8'))
     return folder_name, folder_crc
 
-def get_latest_game_data():
-    response = requests.get(f"{SERVER_ADDR}/gamedata/top?appVer={APP_VER}").json()
+def get_latest_game_data(authParam):
+    response = requests.get(f"{authParam['server_addr']}/gamedata/top?appVer={authParam['app_ver']}").json()
     data = response["response"][0]["success"]
-    asset_bundle = get_asset_bundle(data['assetbundle'])
+    asset_bundle = get_asset_bundle(data['assetbundle'], authParam['region'])
     folder_name, folder_crc = get_folder_data(asset_bundle)
     return {
         "data_ver": data['dataVer'],
@@ -148,19 +120,19 @@ class gachaInfoServant:
         self.sellMana = sellMana
         self.sellQp = sellQp
 
-def top_login(user_id, auth_key, secret_key):
-    game_data = get_latest_game_data()
+def top_login(user_id, auth_key, secret_key, authParam):
+    game_data = get_latest_game_data(authParam)
     
     builder = ParameterBuilder(user_id, auth_key, secret_key)
-    builder.add_parameter('appVer', APP_VER)
+    builder.add_parameter('appVer', authParam['app_ver'])
     builder.add_parameter('authKey', auth_key)
     builder.add_parameter('dataVer', str(game_data['data_ver']))
     builder.add_parameter('dateVer', str(game_data['date_ver']))
     builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
     builder.add_parameter('lastAccessTime', get_time_stamp())
     builder.add_parameter('userId', user_id)
-    builder.add_parameter('verCode', VER_CODE)
-    if REGION == "NA":
+    builder.add_parameter('verCode', authParam['ver_code'])
+    if authParam['region'] == "NA":
         builder.add_parameter('country', '36')
 
     with open('private_key.pem', 'rb') as f:
@@ -180,16 +152,16 @@ def top_login(user_id, auth_key, secret_key):
 
     builder.add_parameter('assetbundleFolder', game_data['asset_bundle']['folderName'])
     
-    builder.add_parameter('deviceInfo', DEVICE_INFO)
+    builder.add_parameter('deviceInfo', authParam['device_info'])
     builder.add_parameter('isTerminalLogin', '1')
     builder.add_parameter('userState', str(user_state))
-    if REGION == "JP":
+    if authParam['region'] == "JP":
         builder.add_parameter('idempotencyKeySignature', idempotency_key_signature)
 
-    url = f'{SERVER_ADDR}/login/top?_userId={user_id}'
+    url = f'{authParam['server_addr']}/login/top?_userId={user_id}'
     data = builder.build()
     headers = {
-        'User-Agent': USER_AGENT,
+        'User-Agent': authParam['user_agent'],
         'Accept-Encoding': "deflate, gzip",
         'Content-Type': "application/x-www-form-urlencoded",
         'X-Unity-Version': "2022.3.28f1"
@@ -218,10 +190,10 @@ def decode_certificate(certificate):
         print(f"Error decoding JSON: {e}")
         return None, None, None
 
-def login(cert):
+def login(cert, authParam):
     user_id, auth_key, secret_key = decode_certificate(cert)
     if user_id and auth_key and secret_key:
-        data = top_login(user_id, auth_key, secret_key)
+        data = top_login(user_id, auth_key, secret_key, authParam)
         name = data['cache']['replaced']['userGame'][0]['name']
         stone = data['cache']['replaced']['userGame'][0]['stone']
         lv = data['cache']['replaced']['userGame'][0]['lv']
@@ -360,7 +332,7 @@ def login(cert):
         print("Failed to decode certificate.")
         return None
 
-def GetGachaSubIdFP(region = REGION):
+def GetGachaSubIdFP(region):
     response = requests.get(f"https://git.atlasacademy.io/atlasacademy/fgo-game-data/raw/branch/{region}/master/mstGachaSub.json");
     gachaList = json.loads(response.text)
     timeNow = GetTimeStamp()
@@ -375,79 +347,90 @@ def GetGachaSubIdFP(region = REGION):
             if(p > priority):
                 priority = p
                 goodGacha = gacha
+
+    if not goodGacha:
+        print("No suitable gacha found")
+        return None  
+    
+    if "id" not in goodGacha:
+        print("Key 'id' not found in the selected gacha")
+        return None
+
     return str(goodGacha["id"])
 
-def drawFP(auth_key, user_id, secret_key):
-    game_data = get_latest_game_data()
-    data = top_login(user_id, auth_key, secret_key)
-    gachaSubId = GetGachaSubIdFP()
+def drawFP(auth_key, user_id, secret_key, authParam):
+    time = datetime.now()
+    if True:
+        game_data = get_latest_game_data(authParam)
+        data = top_login(user_id, auth_key, secret_key, authParam)
+        gachaSubId = GetGachaSubIdFP(authParam['region'])
 
-    if gachaSubId is None:
-        gachaSubId = "0"
-    
-    builder = ParameterBuilder(user_id, auth_key, secret_key)
-    builder.add_parameter('storyAdjustIds', '[]')
-    builder.add_parameter('selectBonusList', '')
-    builder.add_parameter('authKey', auth_key)
-    builder.add_parameter('appVer', APP_VER)
-    builder.add_parameter('dateVer', str(game_data['date_ver']))
-    builder.add_parameter('lastAccessTime', get_time_stamp())
-    builder.add_parameter('verCode', VER_CODE)
-    builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
-    builder.add_parameter('gachaId', '1')
-    builder.add_parameter('num', '10')
-    builder.add_parameter('ticketItemId', '0')
-    builder.add_parameter('shopIdIndex', '1')
-    builder.add_parameter('gachaSubId', gachaSubId)
-    builder.add_parameter('userId', user_id)
-    builder.add_parameter('dataVer', str(game_data['data_ver']))
+        if gachaSubId is None:
+            gachaSubId = "0"
+        
+        builder = ParameterBuilder(user_id, auth_key, secret_key)
+        builder.add_parameter('storyAdjustIds', '[]')
+        builder.add_parameter('selectBonusList', '')
+        builder.add_parameter('authKey', auth_key)
+        builder.add_parameter('appVer', authParam['app_ver'])
+        builder.add_parameter('dateVer', str(game_data['date_ver']))
+        builder.add_parameter('lastAccessTime', get_time_stamp())
+        builder.add_parameter('verCode', authParam['ver_code'])
+        builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
+        builder.add_parameter('gachaId', '1')
+        builder.add_parameter('num', '10')
+        builder.add_parameter('ticketItemId', '0')
+        builder.add_parameter('shopIdIndex', '1')
+        builder.add_parameter('gachaSubId', gachaSubId)
+        builder.add_parameter('userId', user_id)
+        builder.add_parameter('dataVer', str(game_data['data_ver']))
 
-    url = f'{SERVER_ADDR}/gacha/draw?_userId={user_id}'
-    param = builder.build()
-    headers = {
-        'User-Agent': USER_AGENT,
-        'Accept-Encoding': "deflate, gzip",
-        'Content-Type': "application/x-www-form-urlencoded",
-        'X-Unity-Version': "2022.3.28f1"
-    }
-    response = requests.post(url, data=param, headers=headers, verify=True)
-    data = response.json()
-    responses = data['response']
+        url = f'{authParam['server_addr']}/gacha/draw?_userId={user_id}'
+        param = builder.build()
+        headers = {
+            'User-Agent': authParam['user_agent'],
+            'Accept-Encoding': "deflate, gzip",
+            'Content-Type': "application/x-www-form-urlencoded",
+            'X-Unity-Version': "2022.3.28f1"
+        }
+        response = requests.post(url, data=param, headers=headers, verify=True)
+        data = response.json()
+        responses = data['response']
 
-    servantArray = []
-    missionArray = []
+        servantArray = []
+        missionArray = []
 
-    for response in responses:
-        resCode = response['resCode']
-        resSuccess = response['success']
+        for response in responses:
+            resCode = response['resCode']
+            resSuccess = response['success']
 
-        if (resCode != "00"):
-            continue
+            if (resCode != "00"):
+                continue
 
-        if "gachaInfos" in resSuccess:
-            for info in resSuccess['gachaInfos']:
-                servantArray.append(
-                    gachaInfoServant(
-                        info['isNew'], info['objectId'], info['sellMana'], info['sellQp']
+            if "gachaInfos" in resSuccess:
+                for info in resSuccess['gachaInfos']:
+                    servantArray.append(
+                        gachaInfoServant(
+                            info['isNew'], info['objectId'], info['sellMana'], info['sellQp']
+                        )
                     )
-                )
 
-        if "eventMissionAnnounce" in resSuccess:
-            for mission in resSuccess["eventMissionAnnounce"]:
-                missionArray.append(
-                    EventMission(
-                        mission['message'], mission['progressFrom'], mission['progressTo'], mission['condition']
+            if "eventMissionAnnounce" in resSuccess:
+                for mission in resSuccess["eventMissionAnnounce"]:
+                    missionArray.append(
+                        EventMission(
+                            mission['message'], mission['progressFrom'], mission['progressTo'], mission['condition']
+                        )
                     )
-                )
-    return servantArray, missionArray
+        return servantArray, missionArray
 
     
-def buyBlueApple(user_id, auth_key, secret_key):
-    if os.environ.get("BUY_BLUE_APPLE") != "Y":
-        print("BUY_BLUE_APPLE secret is set to N. Skipping.")
+def buyBlueApple(user_id, auth_key, secret_key, authParam):
+    if authParam['buy_blue_apple'] != "Y":
+        print("buy_blue_apple secret is set to N. Skipping.")
         return
-    game_data = get_latest_game_data()
-    data = top_login(user_id, auth_key, secret_key)
+    game_data = get_latest_game_data(authParam)
+    data = top_login(user_id, auth_key, secret_key, authParam)
     
     actRecoverAt = data['cache']['replaced']['userGame'][0]['actRecoverAt']
     actMax = data['cache']['replaced']['userGame'][0]['actMax']
@@ -474,31 +457,28 @@ def buyBlueApple(user_id, auth_key, secret_key):
 
     if bluebronzesapling > 0:
         quantity = remaining_ap_int // 40
-        if quantity == 0:
+        if quantity < 3:
             print(f"\n ======================================== \n Not enough AP to exchange blue apple \n ======================================== ")
             return
         
-        if bluebronzesapling < quantity:
-            num_to_purchase = bluebronzesapling
-        else:
-            num_to_purchase = quantity
+        num_to_purchase = 1
 
         builder = ParameterBuilder(user_id, auth_key, secret_key)
         builder.add_parameter('userId', user_id)
         builder.add_parameter('authKey', auth_key)
-        builder.add_parameter('appVer', APP_VER)
+        builder.add_parameter('appVer', authParam['app_ver'])
         builder.add_parameter('dateVer', str(game_data['date_ver']))
         builder.add_parameter('lastAccessTime', get_time_stamp())
-        builder.add_parameter('verCode', VER_CODE)
+        builder.add_parameter('verCode', authParam['ver_code'])
         builder.add_parameter('idempotencyKey', str(uuid.uuid4()))
         builder.add_parameter('id', '13000000')
         builder.add_parameter('num', str(num_to_purchase))
         builder.add_parameter('dataVer', str(game_data['data_ver']))
             
-        url = f'{SERVER_ADDR}/shop/purchase?_userId={user_id}'
+        url = f'{authParam['server_addr']}/shop/purchase?_userId={user_id}'
         data = builder.build()
         headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': authParam['user_agent'],
             'Accept-Encoding': "deflate, gzip",
             'Content-Type': "application/x-www-form-urlencoded",
             'X-Unity-Version': "2022.3.28f1"
@@ -526,8 +506,8 @@ def buyBlueApple(user_id, auth_key, secret_key):
     else:
         print(f"\n ======================================== \n Not enough saplings \n ======================================== " )
 
-def discord_webhook(data):
-    url = os.environ.get("webhookDiscord")
+def discord_webhook(data, authParam):
+    url = authParam['discord_webhook']
     messageBonus = ''
     nl = '\n'
 
@@ -551,7 +531,7 @@ def discord_webhook(data):
         "content": None,
         "embeds": [
             {
-                "title": "FGO Daily Login - " + REGION,
+                "title": "FGO Daily Login - " + authParam['region'],
                 "description": f"Succesfully login.\n\n{messageBonus}",
                 "color": 563455,
                     "fields": [
@@ -664,61 +644,72 @@ def discord_webhook(data):
         print("DISCORD_WEBHOOK is not set.")
 
 def main():
-    your_certificate = os.environ.get("CERT")
+    with open('auth_file.yaml', 'r') as file:
+        authData = yaml.safe_load(file)
+    for auth in authData['data']:
+        print(f"Processing {auth['account_name']}")
+        your_certificate = auth['certificate'] 
+        authParam = {
+            'region': auth['region'],
+            'buy_blue_apple': auth['buy_blue_apple'],
+            'discord_webhook': auth['discord_webhook'],
+            'server_addr': "https://game.fate-go.jp" if auth['region'] == "JP" else "https://game.fate-go.us",
+            'user_agent': "Dalvik/2.1.0 (Linux; U; Android 9 Build/PQ3A.190605.09261202)",
+            'device_info': "  / Android OS 9 / API-28 (PQ3A.190605.09261202 release-keys/3793265)",
+            'app_ver': get_ver_code(auth['region'])[0],
+            'ver_code': get_ver_code(auth['region'])[1]
+        }
 
-    if ";" not in your_certificate:
-        try:
-            user_id, auth_key, secret_key = decode_certificate(your_certificate)
-            if user_id and auth_key and secret_key:
-                try_login = login(your_certificate)
-                if try_login:
-                    discord_webhook(try_login)
-                    print(f"Name: {try_login['Name']}")
-                    print(f"Login Days: {try_login['Login Days']}/")
-                    formatted_message = '\n'.join(
-                        '\n'.join(f"{key}: {value}" for key, value in bonus.items())
-                        for bonus in try_login['Bonus']
-                    )
-                    print(f"Message:\n{formatted_message}")
-                    drawFP(auth_key, user_id, secret_key)
-                    
-                bba = buyBlueApple(user_id, auth_key, secret_key)
-                if bba:
-                    print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
-
-        except Exception as e:
-            print(f"Error: {e}")
-        return
-    
-    else:
-        auth_key = your_certificate.split(";")
-        
-        for cert in auth_key:
-            try: 
-                user_id, auth_key, secret_key = decode_certificate(cert)
+        if ";" not in your_certificate:
+            try:
+                user_id, auth_key, secret_key = decode_certificate(your_certificate)
                 if user_id and auth_key and secret_key:
-                    try_login = login(cert)
+                    try_login = login(your_certificate, authParam)
                     if try_login:
-                        discord_webhook(try_login)
-                        print(f"======\nName: {try_login['Name']}")
-                        print(f"Login Days: {try_login['Login Days']}")
+                        discord_webhook(try_login, authParam)
+                        print(f"Name: {try_login['Name']}")
+                        print(f"Login Days: {try_login['Login Days']}/")
                         formatted_message = '\n'.join(
                             '\n'.join(f"{key}: {value}" for key, value in bonus.items())
                             for bonus in try_login['Bonus']
                         )
                         print(f"Message:\n{formatted_message}")
-                        dfp = drawFP(auth_key, user_id, secret_key)
-                        if dfp:
-                            print(f"\nDraw {len(dfp[0])} Servants")
+                        # dfp = drawFP(auth_key, user_id, secret_key, authParam)
                         
-                        bba = buyBlueApple(user_id, auth_key, secret_key)
-                        if bba:
-                            print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
+                    bba = buyBlueApple(user_id, auth_key, secret_key, authParam)
+                    if bba:
+                        print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
 
             except Exception as e:
                 print(f"Error: {e}")
+        
+        else:
+            auth_key = your_certificate.split(";")
+            
+            for cert in auth_key:
+                try: 
+                    user_id, auth_key, secret_key = decode_certificate(cert)
+                    if user_id and auth_key and secret_key:
+                        try_login = login(cert, authParam)
+                        if try_login:
+                            discord_webhook(try_login)
+                            print(f"======\nName: {try_login['Name']}")
+                            print(f"Login Days: {try_login['Login Days']}")
+                            formatted_message = '\n'.join(
+                                '\n'.join(f"{key}: {value}" for key, value in bonus.items())
+                                for bonus in try_login['Bonus']
+                            )
+                            print(f"Message:\n{formatted_message}")
+                            # dfp = drawFP(auth_key, user_id, secret_key, authParam)
+                            if dfp:
+                                print(f"\nDraw {len(dfp[0])} Servants")
+                            
+                            bba = buyBlueApple(user_id, auth_key, secret_key, authParam)
+                            if bba:
+                                print(f"\nConsume {40 * bba['num']}Ap, Exchange {bba['num']}x {bba['num']} ")
 
-        return
+                except Exception as e:
+                    print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()

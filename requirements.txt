@@ -8,3 +8,4 @@ coloredlogs
 fake-useragent
 cryptography~=42.0.7
 pycryptodome
+pyyaml
