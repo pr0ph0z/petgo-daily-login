@@ -44,5 +44,5 @@ jobs:
       - name: Commit files
         run: |
           git add ${{github.workspace}}/last_run_date.txt
-          git commit --author="GitHub Actions [Bot] <github-actions[bot]@users.noreply.github.com>" -m "Commit last run"        
+          git diff-index --quiet HEAD || git commit --author="GitHub Actions [Bot] <github-actions[bot]@users.noreply.github.com>" -m "Commit last run"        
           git push origin main
