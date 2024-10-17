@@ -158,7 +158,7 @@ def top_login(user_id, auth_key, secret_key, authParam):
     if authParam['region'] == "JP":
         builder.add_parameter('idempotencyKeySignature', idempotency_key_signature)
 
-    url = f'{authParam['server_addr']}/login/top?_userId={user_id}'
+    url = f"{authParam['server_addr']}/login/top?_userId={user_id}"
     data = builder.build()
     headers = {
         'User-Agent': authParam['user_agent'],
@@ -385,7 +385,7 @@ def drawFP(auth_key, user_id, secret_key, authParam):
         builder.add_parameter('userId', user_id)
         builder.add_parameter('dataVer', str(game_data['data_ver']))
 
-        url = f'{authParam['server_addr']}/gacha/draw?_userId={user_id}'
+        url = f"{authParam['server_addr']}/gacha/draw?_userId={user_id}"
         param = builder.build()
         headers = {
             'User-Agent': authParam['user_agent'],
@@ -475,7 +475,7 @@ def buyBlueApple(user_id, auth_key, secret_key, authParam):
         builder.add_parameter('num', str(num_to_purchase))
         builder.add_parameter('dataVer', str(game_data['data_ver']))
             
-        url = f'{authParam['server_addr']}/shop/purchase?_userId={user_id}'
+        url = f"{authParam['server_addr']}/shop/purchase?_userId={user_id}"
         data = builder.build()
         headers = {
             'User-Agent': authParam['user_agent'],
