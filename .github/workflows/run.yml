@@ -35,3 +35,14 @@ jobs:
         run: |
           source env/bin/activate
           python3 main.py
+      
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions [Bot]"
+                  
+      - name: Commit files
+        run: |
+          git add ${{github.workspace}}/last_run_date.txt
+          git commit --author="GitHub Actions [Bot] <github-actions[bot]@users.noreply.github.com>" -m "Commit last run"        
+          git push origin main

@@ -666,7 +666,8 @@ def main():
                 if user_id and auth_key and secret_key:
                     try_login = login(your_certificate, authParam)
                     if try_login:
-                        discord_webhook(try_login, authParam)
+                        if isFirstRunToday():
+                            discord_webhook(try_login)
                         print(f"Login Days: {try_login['Login Days']}/")
                         formatted_message = '\n'.join(
                             '\n'.join(f"{key}: {value}" for key, value in bonus.items())
@@ -691,7 +692,8 @@ def main():
                     if user_id and auth_key and secret_key:
                         try_login = login(cert, authParam)
                         if try_login:
-                            discord_webhook(try_login)
+                            if isFirstRunToday():
+                                discord_webhook(try_login)
                             print(f"Login Days: {try_login['Login Days']}")
                             formatted_message = '\n'.join(
                                 '\n'.join(f"{key}: {value}" for key, value in bonus.items())
@@ -708,6 +710,24 @@ def main():
 
                 except Exception as e:
                     print(f"Error: {e}")
+
+
+def isFirstRunToday():
+    today = datetime.now().date()
+    
+    if os.path.exists(LAST_RUN_FILE):
+        with open(LAST_RUN_FILE, 'r') as file:
+            last_run_date_str = file.read().strip()
+            
+            last_run_date = datetime.strptime(last_run_date_str, '%Y-%m-%d').date()
+
+            if last_run_date == today:
+                return False
+    
+    with open(LAST_RUN_FILE, 'w') as file:
+        file.write(str(today))
+    
+    return True
 
 if __name__ == "__main__":
     main()
