@@ -18,6 +18,7 @@ from Crypto.Cipher import DES3
 from datetime import datetime, timedelta, timezone
 import yaml
 tz_utc_8 = timezone(timedelta(hours=7))
+LAST_RUN_FILE = os.getenv('LAST_RUN_FILE', os.path.join(os.path.dirname(__file__), 'last_run_date.txt'))
 
 def get_ver_code(region):
     url = f"https://raw.githubusercontent.com/O-Isaac/FGO-VerCode-extractor/{region}/VerCode.json"
@@ -667,7 +668,7 @@ def main():
                     try_login = login(your_certificate, authParam)
                     if try_login:
                         if isFirstRunToday():
-                            discord_webhook(try_login)
+                            discord_webhook(try_login, authParam)
                         print(f"Login Days: {try_login['Login Days']}/")
                         formatted_message = '\n'.join(
                             '\n'.join(f"{key}: {value}" for key, value in bonus.items())
@@ -693,7 +694,7 @@ def main():
                         try_login = login(cert, authParam)
                         if try_login:
                             if isFirstRunToday():
-                                discord_webhook(try_login)
+                                discord_webhook(try_login, authParam)
                             print(f"Login Days: {try_login['Login Days']}")
                             formatted_message = '\n'.join(
                                 '\n'.join(f"{key}: {value}" for key, value in bonus.items())
