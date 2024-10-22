@@ -711,6 +711,7 @@ def main():
 
                 except Exception as e:
                     print(f"Error: {e}")
+    writeFirstRun()
 
 
 def isFirstRunToday():
@@ -724,11 +725,12 @@ def isFirstRunToday():
 
             if last_run_date == today:
                 return False
-    
-    with open(LAST_RUN_FILE, 'w') as file:
-        file.write(str(today))
-    
     return True
+
+def writeFirstRun():
+    if isFirstRunToday():
+        with open(LAST_RUN_FILE, 'w') as file:
+            file.write(str(today))
 
 if __name__ == "__main__":
     main()
