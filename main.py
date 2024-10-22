@@ -729,6 +729,7 @@ def isFirstRunToday():
 
 def writeFirstRun():
     if isFirstRunToday():
+        today = datetime.now().date()
         with open(LAST_RUN_FILE, 'w') as file:
             file.write(str(today))
 
