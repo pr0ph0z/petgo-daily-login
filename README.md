@@ -1,5 +1,5 @@
 # petgo-daily-login
-Standalone script for scheduled daily login
+Standalone script for scheduled daily login. Forked from [niizam/petgo-daily-login](https://github.com/niizam/petgo-daily-login), adjusted for personal needs. Added support for multiple accounts by using SOPS for the auth file encryption.
 
 It has the following features:
 - No Logs
